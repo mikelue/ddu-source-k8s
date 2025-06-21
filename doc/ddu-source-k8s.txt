@@ -1,0 +1,916 @@
+*ddu-source-k8s.txt*						DDU source for K8S resources
+
+License : MIT license
+
+==============================================================================
+								*ddu-source-k8s-toc*
+TOC
+
+1. Introduction							|ddu-source-k8s-introduction|
+2. Requirements							|ddu-source-k8s-requirements|
+3. Sample Usage of DDU						|ddu-source-k8s-sample-ddu-usage|
+
+4. Configurations						|ddu-source-k8s-configurations|
+4.1. Source Params						|ddu-source-k8s-params|
+4.2. ddu-ui-ff Setting						|ddu-source-k8s-ddu-ui-ff|
+4.3. Theme							|ddu-source-k8s-theme|
+
+5. Actions							|ddu-source-k8s-actions|
+
+6. Sources							|ddu-source-k8s-sources|
+6.a. Source Info						|ddu-source-k8s-source-info|
+
+   k8s_configmap						|ddu-source-k8s-k8s_configmap|
+   k8s_context							|ddu-source-k8s-k8s_context|
+   k8s_cronjob							|ddu-source-k8s-k8s_cronjob|
+   k8s_daemonset						|ddu-source-k8s-k8s_daemonset|
+   k8s_deployment						|ddu-source-k8s-k8s_deployment|
+   k8s_endpointslice						|ddu-source-k8s-k8s_endpointslice|
+   k8s_job							|ddu-source-k8s-k8s_job|
+   k8s_namespace						|ddu-source-k8s-k8s_namespace|
+   k8s_node							|ddu-source-k8s-k8s_node|
+   k8s_persistentvolume						|ddu-source-k8s-k8s_persistentvolume|
+   k8s_persistentvolumeclaim					|ddu-source-k8s-k8s_persistentvolumeclaim|
+   k8s_pod							|ddu-source-k8s-k8s_pod|
+   k8s_replicaset						|ddu-source-k8s-k8s_replicaset|
+   k8s_secret							|ddu-source-k8s-k8s_secret|
+   k8s_service							|ddu-source-k8s-k8s_service|
+   k8s_statefulset						|ddu-source-k8s-k8s_statefulset|
+
+7. Preview							|ddu-source-k8s-preview|
+
+8. NVIM Commands						|ddu-source-k8s-commands|
+
+9. NVIM Functions						|ddu-source-k8s-functions
+
+==============================================================================
+								*ddu-source-k8s-introduction*
+1. Introduction ~
+
+This plugin gives list of K8S resources(pod, service, etc.) by DDU mechanism.
+
+The displaying text of the items are decorated by
+Nerd Fonts and highlight groups(customizable) built-in NVIM.
+
+e.g.: >
+	  kube-dns  ClusterIP (2 weeks ago) 󰒍 10.96.0.10 (53/UDP,53/TCP,9153/TCP) ( 251) (b82dc70a-...)
+	  metrics-server  ClusterIP (2 weeks ago) 󰒍 10.109.196.147 (443/TCP) ( 302) (5436aab3-...)
+<
+* This plugin depends on "kubectl" command.
+
+* This plugin supports following resources of K8S: >
+	configmap, context, cronjob, daemonset, deployment, endpointslice,
+	job, namespace, node, persistentvolume, persistentvolumeclaim,
+	pod, replicaset, secret, service, statefulset
+<
+==============================================================================
+								*ddu-source-k8s-requirements*
+2. Requirements ~
+
+ - NVIM v0.10+
+ - denops.vim(https://github.com/vim-denops/denops.vim), ddu.vim(https://github.com/Shougo/ddu.vim), ddu-ui-ff(https://github.com/Shougo/ddu-ui-ff)
+ - Nerd Fonts(https://www.nerdfonts.com/)
+ - Your favorite ddu-matcher-filter(https://github.com/topics/ddu-filter)
+ - kubectl(https://kubernetes.io/docs/reference/kubectl/)
+
+==============================================================================
+								*ddu-source-k8s-sample-ddu-usage*
+3. Example Usage of DDUK8S ~
+
+------------------------------------------------------------------------------
+Open pod list
+
+EXAMPLE >lua
+
+	local podOptions = {
+		name = 'k8s_pod',
+		sources = {
+			{
+				name = 'k8s_pod',
+			},
+		},
+
+		kindOptions = {
+			k8s_pod = {
+				defaultAction = 'open'
+			}
+		}
+	}
+
+	vim.fn['ddu#start'](podOptions)
+<
+------------------------------------------------------------------------------
+Open pod list in another namespace/context with detail
+
+EXAMPLE >lua
+
+	local podOptions = {
+		name = 'k8s_pod',
+		sources = {
+			{
+				name = 'k8s_pod',
+				params = {
+					namespace = 'kube-system',
+					context = 'default',
+					show_detail = true,
+				},
+			},
+		},
+
+		kindOptions = {
+			k8s_pod = {
+				defaultAction = 'open'
+			}
+		}
+	}
+
+	vim.fn['ddu#start'](podOptions)
+
+------------------------------------------------------------------------------
+Open context list:
+
+EXAMPLE >lua
+
+	local contextOptions = {
+		name = 'k8s_context',
+		sources = {
+			{
+				name = 'k8s_context',
+			},
+		},
+
+		k8s_context = {
+			defaultAction = 'use'
+		},
+	}
+
+	vim.fn['ddu#start'](contextOptions)
+
+==============================================================================
+								*ddu-source-k8s-configurations*
+4. Configurations ~
+
+------------------------------------------------------------------------------
+  								*ddu-source-k8s-params*
+4.1 Source Params ~
+
+Every DDU source provided by this plugin has common |ddu-source-params|:
+
+------------------------------------------------------------------------------
+								*ddu-source-k8s-param-context*
+"context" (string, optional)
+	As the context used by "kubectl [--context=]" command.
+
+								*ddu-source-k8s-param-namespace*
+"namespace" (string, optional)
+	As the namespace fed to "kubectl [--namespace=]".
+
+								*ddu-source-k8s-param-selector*
+"selector" (string, optional)
+	As the selector syntax fed to "kubectl get pod --selector=''".
+
+								*ddu-source-k8s-param-show_detail*
+"show_detail" (boolean, default value: |v:false|)
+	By |ddu-item-attribute-info|, this param gives more information about a K8S
+	resource.(labels, annotations, etc.)
+
+------------------------------------------------------------------------------
+
+References:
+	- CommonParams @ {plugin-root}/denops/common.ts
+	- kubectl(config get-contexts)(https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#-em-get-contexts-em-)
+
+==============================================================================
+								*ddu-source-k8s-ddu-ui-ff*
+4.2. ddu-ui-ff Setting
+
+This is my usage for hot keys on DDU list: >lua
+
+		vim.keymap.set('n', '<CR>', '<Cmd>call ddu#ui#do_action("itemAction")<CR>', { buffer = true, noremap = true })
+		vim.keymap.set('n', 'y', '<Cmd>call ddu#ui#async_action("itemAction", { "name": "yank" })<CR>', { buffer = true, desc = 'Yank itmes' })
+		vim.keymap.set('n', 'p', '<Cmd>call ddu#ui#sync_action("togglePreview")<CR>', { buffer = true, desc = 'Toggle preview' })
+		vim.keymap.set('n', 'r', '<Cmd>call ddu#ui#async_action("redraw", { "method": "refreshItems" })<CR>', { buffer = true, desc = 'Refresh items' })
+
+		local optionNameOfK8sKind = vim.regex('^k8s_')
+		if optionNameOfK8sKind:match_str(vim.b.ddu_ui_name) ~= nil then
+			vim.keymap.set('n', '<LocalLeader>i',
+				switchShowDetail,
+				{ buffer = true, desc = "Switch detail information of K8S resources" }
+			)
+		end
+<
+==============================================================================
+								*ddu-source-k8s-theme*
+4.3. Theme ~
+
+This plugin use a bunch of highlight groups for displaying,
+which are name of NVIM highligh groups.
+
+								*g:dduk8s#theme*
+The global variable |g:dduk8s#theme| is used to override default theme
+configuration for this plugin.
+
+* Currently, not all of the icons can be customized, same as highlight groups.
+
+------------------------------------------------------------------------------
+
+Properties defined by |g:dduk8s#theme|:
+
+								*ddu-source-k8s-theme-hl_groups*
+"hl_groups" - The mapping of display component to name of highlight groups in NVIM.
+
+	"prefix_icon" - The highlight for very first icon used in every itme of list.
+		See "icons.prefix".
+
+	"resource_version" - The highlight for resource version("resourceVersion" of K8S ObjectMeta).
+		See "icons.resource_version".
+
+	"uid" - The highligh for uid("uid" of K8S ObjectMeta).
+
+	"creation_timestamp" - The highlight for "creationTimestamp" and "uid" of
+		K8S resource. This is used when "show_detail" param is |v:true|.
+		See "icons.creation_timestamp".
+
+	"label" - The highlight for "labels" of K8S ObjectMeta.
+		This is used when "show_detail" param is |v:true|.
+		See "icons.label".
+
+	"annotation" - The highlight for "annotations" of K8S ObjectMeta.
+		This is used when "show_detail" param is |v:true|.
+		See "icons.annotation".
+
+	"owner_reference" - The highlight for "ownerReferences" of K8S ObjectMeta.
+		This is used when "show_detail" param is |v:true|.
+		See "icons.owner_reference".
+
+	"selector_match_label" - For K8S resources which have "LabelSelector",
+		like "ReplicaSet", "Deployment", etc. This is used to highlight "LabelSelector.matchLabels".
+		This is used when "show_detail" param is |v:true|.
+		See "icons.selector_match_labels".
+
+	"selector_match_expr" - For K8S resources which have "LabelSelector",
+		like "ReplicaSet", "Deployment", etc. This is used to highlight "LabelSelector.matchExpressions".
+		This is used when "show_detail" param is |v:true|.
+		See "icons.selector_match_expr".
+
+	"l1_info" - This is an abstract definition of highlight.
+		Use this if you like to focus some important text.
+
+	"l2_info" - This is an abstract definition of highlight.
+		Use this if you like to focus some minor text.
+
+	"l3_info" - This is an abstract definition of highlight.
+		Use this if you like to focus some unimportant text.
+
+								*ddu-source-k8s-theme-icons*
+"icons" - The icons used in display component.
+
+	"prefix" - The very first characters used in every item of DDU list.
+
+	"creation_timestamp" - Placed before additional information for
+		"creationTimestamp" and "uid" of K8S ObjectMeta.
+		This is used when "show_detail" param is |v:true|.
+
+	"resource_version" - Placed before additional information for
+		"resourceVersion" of K8S ObjectMeta.
+		This is used when "show_detail" param is |v:true|.
+
+	"label" - Placed before additional information for
+		"labels" of K8S ObjectMeta.
+		This is used when "show_detail" param is |v:true|.
+
+	"annotation" - Placed before additional information for
+		"annotations" of K8S ObjectMeta.
+		This is used when "show_detail" param is |v:true|.
+
+	"owner_reference" - Placed before additional information for
+		"ownerReferences" of K8S ObjectMeta.
+		This is used when "show_detail" param is |v:true|.
+
+	"selector_match_label" - Placed before additional information for
+		property of "LabelSelector"(matchLabels) type of a K8S resource.
+		This is used when "show_detail" param is |v:true|.
+
+	"selector_match_expr" - Placed before additional information for
+		property of "LabelSelector"(matchExpressions) type of a K8S resource.
+		This is used when "show_detail" param is |v:true|.
+
+------------------------------------------------------------------------------
+
+References: |ddu-source-k8s-param-show_detail|
+
+------------------------------------------------------------------------------
+
+default values(lua example): >lua
+
+	vim.g['dduk8s#theme'] = {
+		hl_groups = {
+			prefix_icon = "Directory",
+			resource_version = "Label",
+			uid = "Comment",
+			creation_timestamp = "Comment",
+			label = "DiagnosticWarn",
+			annotation = "Comment",
+			owner_reference = "Type",
+			selector_match_label = "DiagnosticWarn",
+			selector_match_expr = "Title",
+			l1_info = "DiagnosticWarn",
+			l2_info = "DiagnosticInfo",
+			l3_info = "SpecialKey",
+		},
+		icons = {
+			prefix = "",
+			creation_timestamp = "󱫢",
+			resource_version = "",
+			label = "",
+			annotation = "󰪛",
+			owner_reference = "󱘎",
+			selector_match_label = "",
+			selector_match_expr = "",
+		},
+	}
+<
+------------------------------------------------------------------------------
+
+References:
+	- K8sTheme @ {plugin-root}/denops/common.ts
+	- DEFAULT_THEME @ {plugin-root}/denops/common.ts
+	- K8S ObjectMeta(https://kubernetes.io/docs/reference/kubernetes-api/common-definitions/object-meta/#ObjectMeta)
+	- K8S LabelSelectr(https://kubernetes.io/docs/reference/kubernetes-api/common-definitions/label-selector/#LabelSelector)
+
+==============================================================================
+								*ddu-source-k8s-actions*
+5. Actions ~
+
+Every source(except "k8s_context") provided by this plugin has its own kind(same name of source)
+with following common actions:
+
+------------------------------------------------------------------------------
+
+"open" - Open the content of object as YAML. Like 'kubectl get kind/name -o yaml'.
+
+	* If you have installed "skanehira/k8s.vim"(https://github.com/skanehira/k8s.vim),
+		this action would use it's syntax of buffer name to display the resource.
+
+"insert" - Insert the text(by paste |P|) to buffer in the context of DDU.
+
+"append" - Append the text(by paste |p|) to buffer in the context of DDU.
+
+"yank" - Yank the "name" of K8S ObjectMeta to unnamed register(|quote_quote|).
+
+"yank-get" - Yank the full command of kubectl for "get" to unnamed register(|quote_quote|).
+
+	The options of "--context" and "--namespace" are supported by common params of source.
+
+	e.g.: >
+		kubectl get po/some-pod
+<
+"yank-describe" - Yank the full command of kubectl for "describe" to unnamed register(|quote_quote|).
+
+	The options of "--context" and "--namespace" are supported by common params of source.
+
+	e.g.: >
+		kubectl describe po/some-pod
+<
+"yank-uid" - Yank the "uid" of K8S ObjectMeta to unnamed register(|quote_quote|).
+
+------------------------------------------------------------------------------
+
+References:
+	- |ddu-source-k8s-param-context|
+	- CommonActions @ {plugin-root}/denops/common.ts
+<
+==============================================================================
+								*ddu-source-k8s-sources*
+6. Sources ~
+
+* Every DDU source provided by this plugin has it's own style and text when
+	displayed on DDU list.
+
+* The first component after prefix icon("prefix" of |ddu-source-k8s-theme-icons|)
+	would be the name of K8S resource(K8S ObjectMeta).
+
+* The last two components of every displaying text are
+	"resourceVersion" and "uid" of K8S ObjectMeta.
+
+* The "<age>" comes from "creationTimestamp" of K8S ObjectMeta.
+
+* Check detail from source code under {plugin-root}/denops/@sources/*.ts.
+
+References:
+
+	ObjectMeta(https://kubernetes.io/docs/reference/kubernetes-api/common-definitions/object-meta/#ObjectMeta)
+
+------------------------------------------------------------------------------
+								*ddu-source-k8s-source-info*
+
+6.a Source Info ~
+
+Every source(except context) has detail information showned by |ddu-item-attribute-info|
+if "show_detail" of source param is |v:true|.
+
+Here is the common information if a K8S resource has it:
+
+++ "LabelSelector.matchLabels"(icon: "select_match_label"): >
+
+	 k8s-app  kube-dns
+	 pod-template-hash  674b8bbfcf
+<
+++ "LabelSelector.matchExpressions"(icon: "select_match_expr"): >
+
+	 somekey In v1,v2,v3
+	 somekey2 Exists g1,v2
+
+++ "ObjectMeta.creationTimestamp", "ObjectMeta.uid"(icon: "creation_timestamp"): >
+
+	󱫢 2025-06-05T05:45:13Z (224789c5-6fef-4c57-b1a1-035cc00062a4)
+
+++ "ObjectMeta.lables"(icon: "label"): >
+
+	 job-name 󰁔 work-1
+	 app 󰁔 work-job
+<
+++ "ObjectMeta.annotations"(icon: "annotation"): >
+
+	󰪛 kubernetes.io/config.hash 󰁔 c62207270ddb101b80503635d83b08e6
+	󰪛 kubernetes.io/config.mirror 󰁔 c62207270ddb101b80503635d83b08e6
+
+++ "ObjectMeta.ownerReference"(icon: "owner_reference"): >
+
+	󱘎 metrics-server(Deployment) (eec96522-...)
+<
+------------------------------------------------------------------------------
+
+References:
+
+	- |ddu-source-k8s-theme-icons|
+	- _buildResourceInfo @ {plugin-root}/denops/common.ts
+	- buildInfoOfSelector @ {plugin-root}/denops/common.ts
+
+------------------------------------------------------------------------------
+								*ddu-source-k8s-k8s_configmap*
+k8s_configmap ~
+
+e.g.: >
+
+	  coredns  1 (2 weeks ago) ( 280) (22095072-...)
+	  extension-apiserver-authentication  6  2 (2 weeks ago) ( 21) (5c398ce8-...)
+	  <NAME>  <A>  <B> <AGE> ( <RESOURCE_VERSION>) (<UID>...)
+<
+Explain:
+
+	* <A> - As the number of "ConfigMap.data"
+	* <B> - As the number of "ConfigMap.binaryData"
+
+Referenes:
+
+	ConfigMap(https://kubernetes.io/docs/reference/kubernetes-api/config-and-storage-resources/config-map-v1/)
+
+------------------------------------------------------------------------------
+								*ddu-source-k8s-k8s_context*
+k8s_context ~
+
+e.g.: >
+
+	  󰋱 default 󱂀 default (󰒍 default-cluster 󰦝 default-auth-info)
+	  cluster-1 󱂀 default (󰒍 cluster-1 󰦝 cluster-1-auth)
+	  󰋱 <NAME> 󱂀 <A> (󰒍 <B> 󰦝 <C>)
+<
+Explain:
+
+	* 󰋱 - Shown for current context(using by kubectl)
+	* <A> - As the NAMESPACE of context
+	* <B> - As the CLUSTER of context
+	* <C> - As the NAUTHINFO of context
+
+Actions:
+
+	"use" - As "kubectl config use-context", use the selected context
+
+	"insert" - Insert the text(by paste |P|) to buffer in the context of DDU.
+
+	"append" - Append the text(by paste |p|) to buffer in the context of DDU.
+
+	"yank" - Yank the name of context to unnamed register(|quote_quote|).
+
+Referenes:
+
+	kubectl context(https://kubernetes.io/docs/reference/kubectl/generated/kubectl_config/kubectl_config_get-contexts/)
+
+------------------------------------------------------------------------------
+								*ddu-source-k8s-k8s_cronjob*
+k8s_cronjob ~
+
+e.g.: >
+
+	  󰅜 noop-cronjob-10am  [0 10 * * *] (America/New_York)  (󰼽 4 days ago) ( 648887) (187a3ef9-...)
+	  noop-cronjob-4pm  [0 16 * * *]  󱦻 12 hours ago 󰾩 12 hours ago (󰼽 4 days ago) ( 883134) (6d365df0-...)
+	  󰅜 <NAME>  [<A>] (<A-1>) 󱦻 <B> 󰾩 <C> (󰼽 <AGE>) ( <RESOURCE_VERSION>) (<UID>...)
+<
+Explain:
+
+	* 󰅜 - Shown if the value of "CronJob.spec.suspend" is true
+	* <A> - As the cron spec which comes from "CronJob.spec.schedule"
+	* <A-1> - Shown if the value of "CronJob.spec.timeZone" is viable.
+	* <B> - As the relative time for "CronJob.status.lastScheduleTime"
+	* <C> - As the relative time for "CronJob.status.lastSuccessfulTime"
+
+Referenes:
+
+	CronJob(https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/cron-job-v1/)
+
+------------------------------------------------------------------------------
+								*ddu-source-k8s-k8s_daemonset*
+k8s_daemonset ~
+
+e.g.: >
+
+	  sample-daemon-one 󰲷 1/1  1  1/1 (4 days ago) ( 642070) (cb34fb13-...)
+	  sample-daemon-two 󰲷 1/1  1  1/1 (4 days ago) ( 642071) (d6a36fbc-...)
+	  <NAME> 󰲷 <A>/<B>  <C>  <D>/<E> <AGE> ( <RESOURCE_VERSION>) (<UID>...)
+<
+Explain:
+
+	* <A> - As the value of "DaemonSet.status.numberReady"
+	* <B> - As the value of "DaemonSet.status.desiredNumberScheduled"
+	* <C> - As the value of "DaemonSet.status.updatedNumberScheduled"
+	* <D> - As the value of "DaemonSet.status.currentNumberScheduled"
+	* <E> - As the value of "DaemonSet.status.numberAvailable"
+
+Referenes:
+
+	DaemonSet(https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/daemon-set-v1/)
+
+------------------------------------------------------------------------------
+								*ddu-source-k8s-k8s_deployment*
+k8s_deployment ~
+
+e.g.: >
+
+	  coredns 󰲷 1/1  1  1 (2 weeks ago) ( 12407) (eec96522-...)
+	  metrics-server 󰲷 1/1  1  1 (2 weeks ago) ( 12400) (224789c5-...)
+	  <NAME> 󰲷 <A>/<B>  <C>  <D> <AGE> ( <RESOURCE_VERSION>) (<UID>...)
+<
+Explain:
+
+	* <A> - As the value of "Deployment.status.readyReplicas"
+	* <B> - As the value of "Deployment.spec.replicas"
+	* <C> - As the value of "Deployment.status.updatedReplicas"
+	* <D> - As the value of "Deployment.status.availableReplicas"
+
+Referenes:
+
+	Deployment(https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/deployment-v1/)
+
+------------------------------------------------------------------------------
+								*ddu-source-k8s-k8s_endpointslice*
+k8s_endpointslice ~
+
+e.g.: >
+
+	  kube-dns-kwlj7 󰿘 IPv4 (9153/TCP,53/UDP,53/TCP) 󰩠 10.244.0.6 (2 weeks ago) ( 12405) (b06f8314-...)
+	  metrics-server-2p559 󰿘 IPv4 (4443/TCP) 󰩠 10.244.0.8 (2 weeks ago) ( 12399) (1db23e59-...)
+	  <NAME> 󰿘 <A> (<B>) 󰩠 <C> <AGE> ( <RESOURCE_VERSION>) (<UID>...)
+
+Explain:
+
+	* <A> - As the value of "EndpointSlice.addressType"
+	* <B> - As the value of "EndpointSlice.ports"(comma separated)
+	* <C> - As the value of "EndpointSlice.endpoints.addresses"(comma separated)
+
+Additional info:
+
+++  "EndpointSlice.endpoints.targetRef"
+
+	e.g.: >
+
+		  10.244.0.6 󰁔 coredns-674b8bbfcf-92vw5(Pod) (b06f8314-...)
+		  <A> 󰁔 <B>(<C>) (<UID>...)
+<
+	Explain:
+
+		* <A> - The value of "EndpointSlice.addresses"(comma separated)
+		* <B> - The name of "ObjectReference" of "targetRef"
+		* <C> - The kind of "ObjectReference" of "targetRef"
+		* <UID> - The uid of "ObjectReference" of "targetRef"
+
+Referenes:
+
+	EndpointSlice(https://kubernetes.io/docs/reference/kubernetes-api/service-resources/endpoint-slice-v1/)
+	ObjectReference(https://kubernetes.io/docs/reference/kubernetes-api/common-definitions/object-reference/#ObjectReference)
+
+------------------------------------------------------------------------------
+								*ddu-source-k8s-k8s_job*
+k8s_job ~
+
+e.g.: >
+
+	  eagle  1/1 󱛣 3s [4 days ago] (󰼽 4 days ago) ( 649246) (f2a74c91-...)
+	  󰅜 turtle  1/1 󱛣 4s [4 days ago] (󰼽 4 days ago) ( 650513) (897d5448-...)
+	  󰅜 <NAME>  <A>/<B> 󱛣 <C> [<D>] (󰼽 <AGE>) ( <RESOURCE_VERSION>) (<UID>...)
+<
+Explain:
+
+	* 󰅜 - Shown if the value of "CronJob.spec.suspend" is true
+	* <A> - As the value of "Job.status.succeeded"
+	* <B> - As the value of "Job.spec.completions"
+	* <C> - As the duration between
+	 	"Job.status.startTime" and "Job.status.completionTime"
+	* <D> - As the relative time of "Job.status.completionTime"
+
+Referenes:
+
+	Job(https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/job-v1/)
+
+------------------------------------------------------------------------------
+								*ddu-source-k8s-k8s_namespace*
+k8s_namespace ~
+
+e.g.: >
+
+	  default ( 280) (22095072-...)
+	  kube-system ( 21) (5c398ce8-...)
+<
+Explain:
+<
+Referenes:
+
+	Namespace(https://kubernetes.io/docs/reference/kubernetes-api/cluster-resources/namespace-v1/)
+
+------------------------------------------------------------------------------
+								*ddu-source-k8s-k8s_node*
+k8s_node ~
+
+e.g.: >
+
+	  mike-sandbox   control-plane 󱦂 10.244.0.0/24 (2 weeks ago)  v1.33.1  6.8.0-60-generic  8  31.3 GB  233.18 GB ( 900321) (ef869322-...)
+	  <NAME>   <A>(<A-1>) 󱦂 <B> <AGE>  <C>  <D>  <E>  <F>  <G> ( <RESOURCE_VERSION>)>) (<UID>...)
+<
+Explain:
+
+	* <A> - As the part of label name of K8S Node for "node-role.kubernetes.io/<role>".
+	* <A-1> - If the node is not ready, the message and reason of "Node.status.conditions"
+		would be shown in this part.
+	* <B> - As the value of "Node.spec.podCIDR"
+	* <C> - As the value of "Node.status.nodeInfo.kubeletVersion"
+	* <D> - As the value of "Node.status.nodeInfo.kernelVersion"
+	* <E> - As the value of "Node.status.capacity.cpu"
+	* <F> - As the value of "Node.status.capacity.memory"
+	* <G> - As the value of "Node.status.capacity.ephemeral-storage"
+
+Additional info:
+
+	"Node.status.capacity"(shown as key/value pair): >
+
+		 cpu  8
+		 ephemeral-storage  244506940Ki
+		 hugepages-1Gi  0
+		 hugepages-2Mi  0
+		 memory  32818752Ki
+		 pods  110
+
+Referenes:
+
+	Node(https://kubernetes.io/docs/reference/kubernetes-api/cluster-resources/node-v1/)
+
+------------------------------------------------------------------------------
+								*ddu-source-k8s-k8s_persistentvolume*
+k8s_persistentvolume ~
+
+e.g.: >
+
+	  pv0001  16Mi(RWO/Retain)  manual  Bound (2 days ago) ( 765489) (607b1891-...)
+	  pv0002  16Mi(RWO/Retain)  manual  Bound (2 days ago) ( 765494) (38a505b0-...)
+	  <NAME>  <A>(<B>/<C>)  <D>  <E> 󰍢 <F> <AGE> ( <RESOURCE_VERSION>) (<UID>...)
+<
+Explain:
+
+	* <A> - As the value of "PersistentVolume.spec.capacity.storage"
+	* <B> - As the value of "PersistentVolume.spec.accessModes"(First capital characters, comma separated)
+	* <C> - As the value of "PersistentVolume.spec.persistentVolumeReclaimPolicy"
+	* <D> - As the value of "PersistentVolume.spec.storageClassName"
+	* <E> - As the value of "PersistentVolume.status.phase"
+	* <F> - As the value of "PersistentVolume.status.message" and "PersistentVolume.status.reason"
+
+Referenes:
+
+	PersistentVolume(https://kubernetes.io/docs/reference/kubernetes-api/config-and-storage-resources/persistent-volume-v1/)
+
+------------------------------------------------------------------------------
+								*ddu-source-k8s-k8s_persistentvolumeclaim*
+k8s_persistentvolumeclaim ~
+
+e.g.: >
+
+	  my-pvc-1  4Mi(RWO)  manual(pv0001)  Bound (2 days ago) ( 765492) (32429e18-...)
+	  my-pvc-2  4Mi(RWO)  manual(pv0002)  Bound (2 days ago) ( 765507) (c8fb2f2b-...)
+	  <NAME>  <A>(<B>)  <C>  <D> <AGE> ( <RESOURCE_VERSION>) (<UID>...)
+<
+Explain:
+
+	* <A> - As the value of "PersistentVolumeClaim.spec.resources.requests.storage"
+	* <B> - As the value of "PersistentVolumeClaim.spec.accessModes"(First capital characters, comma separated)
+	* <C> - As the value of "PersistentVolumeClaim.spec.volumeName" and "PersistentVolumeClaim.spec.storageClassName"
+	* <D> - As the value of "PersistentVolumeClaim.status.phase"
+
+Referenes:
+
+	PersistentVolumeClaim(https://kubernetes.io/docs/reference/kubernetes-api/config-and-storage-resources/persistent-volume-claim-v1/)
+
+------------------------------------------------------------------------------
+								*ddu-source-k8s-k8s_pod*
+k8s_pod ~
+
+e.g.: >
+
+	  noop-cronjob-7pm-29172900-rrglx  Succeeded  0/1  0 (󱫐 8 hours ago) 󰩠 10.244.0.24 (8 hours ago) ( 896380) (5a0b36ac-...)
+	  sample-daemon-one-mnl8t  Running  1/1  0 (󱫐 4 days ago) 󰩠 10.244.0.11 (4 days ago) ( 640479) (05ff945e-...)
+	  <NAME>  <A>  <B>/<C>  <D> (<E>) 󰩠 <F> <AGE> ( <RESOURCE_VERSION>) (<UID>...)
+<
+Explain:
+
+	* <A> - As the value of "Pod.status.phase"
+	* <B> - As the number for "Pod.status.containerStatuses" where ".ready" is true
+	* <C> - As the number for "Pod.status.containerStatuses"
+	* <D> - As the accumulated number for "Pod.status.containerStatuses.restartCount"
+	* <E> - As the relative time for "Pod.status.containerStatuses.state.{Running | Terminated}.startedAt"
+	* <F> - As the value for "Pod.status.podIP"
+
+Additional info:
+
+++ "Node.status.hostIP": >
+
+	 192.168.49.2
+<
+++ "Node.containerStatuses.resources.limits": >
+
+	󱤸 minimal-container  cpu/100m
+	󱤸 minimal-container  memory/100m
+	󱤸 <A>  <B>/<C>
+<
+	* <A> - The value of "Node.containerStatuses.name"
+	* <B> - The key of "Node.containerStatuses.resources.limits"
+	* <C> - The value(quantity) of "Node.containerStatuses.resources.limits"
+<
+Referenes:
+
+	Pod(https://kubernetes.io/docs/reference/kubernetes-api/config-and-storage-resources/persistent-volume-claim-v1/)
+
+------------------------------------------------------------------------------
+								*ddu-source-k8s-k8s_replicaset*
+k8s_replicaset ~
+
+e.g.: >
+
+	  coredns-674b8bbfcf 󰲷 1/1  1 (2 weeks ago) ( 12406) (a20556d3-...)
+	  metrics-server-7fbb699795 󰲷 1/1  1 (2 weeks ago) ( 12397) (a9791bf5-...)
+	  <NAME> 󰲷 <A>/<B>  <C> <AGE> ( <RESOURCE_VERSION>) (<UID>...)
+<
+Explain:
+
+	* <A> - As the value of "ReplicaSet.status.readyReplicas"
+	* <B> - As the value of "ReplicaSet.spec.replicas"
+	* <C> - As the value of "ReplicaSet.status.availableReplicas"
+
+Referenes:
+
+	ReplicaSet(https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/replica-set-v1/)
+
+------------------------------------------------------------------------------
+								*ddu-source-k8s-k8s_secret*
+k8s_secret ~
+
+e.g.: >
+
+	  kubernetes-dashboard-csrf  1 (2 weeks ago) ( 280) (22095072-...)
+	  kubernetes-dashboard-key-holder  6  2(Opaque) (2 weeks ago) ( 21) (5c398ce8-...)
+	   <NAME>  <A>  <B>(<C>) <AGE> ( <RESOURCE_VERSION>) (<UID>...)
+<
+Explain:
+
+	*  - Shown if the value of "Secret.immutable" is true
+	* <A> - As the number of "Secret.stringData"
+	* <B> - As the number of "Secret.data"
+	* <C> - As the value of "Secret.type"
+
+Referenes:
+
+	Secret(https://kubernetes.io/docs/reference/kubernetes-api/config-and-storage-resources/config-map-v1/)
+
+------------------------------------------------------------------------------
+								*ddu-source-k8s-k8s_service*
+k8s_service ~
+
+e.g.: >
+
+	  kube-dns  ClusterIP 󰒍 10.96.0.10 (53/UDP,53/TCP,9153/TCP) (2 weeks ago) ( 251) (b82dc70a-...)
+	  metrics-server  ClusterIP 󰒍 10.109.196.147 (443/TCP) (2 weeks ago) ( 302) (5436aab3-...)
+	  <NAME>  <A> 󰒍 <B> (<C>) <AGE> ( 302) (5436aab3-...)
+<
+Explain:
+
+	* <A> - As the value of "Service.spec.type"
+	* <B> - As the value of "Service.spec.clusterIP"
+	* <C> - As the value of "Service.spec.ports" ("port" or "nodePort")
+
+Additional info:
+
+++ "Service.spec.selector": >
+
+	 k8s-app  kube-dns
+<
+Referenes:
+
+	Service(https://kubernetes.io/docs/reference/kubernetes-api/service-resources/service-v1/)
+
+------------------------------------------------------------------------------
+								*ddu-source-k8s-k8s_statefulset*
+k8s_statefulset ~
+
+e.g.: >
+
+	  database-1 󰲷 1/1  1  1 (2 weeks ago) ( 12407) (eec96522-...)
+	  database-2 󰲷 1/1  1  1 (2 weeks ago) ( 12400) (224789c5-...)
+	  <NAME> 󰲷 <A>/<B>  <C>  <D> <AGE> ( <RESOURCE_VERSION>) (<UID>...)
+<
+Explain:
+
+	* <A> - As the value of "StatefulSet.status.readyReplicas"
+	* <B> - As the value of "StatefulSet.spec.replicas"
+	* <C> - As the value of "StatefulSet.status.updatedReplicas"
+	* <D> - As the value of "StatefulSet.status.availableReplicas"
+
+Referenes:
+
+	StatefulSet(https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/stateful-set-v1/)
+
+==============================================================================
+								*ddu-source-k8s-preview*
+7. Preview ~
+
+The preview function of item is implemented by "kubectl get ... -o yaml".
+
+==============================================================================
+								*ddu-source-k8s-commands*
+8. NVIM Commands ~
+
+------------------------------------------------------------------------------
+								*:DduK8s*
+:DduK8s [-ns=] [-c=] [-l=] [-d] {kind}
+
+	* -ns= - The K8S namespace to be fetched
+	* -c= - The context of kubectl to be used
+	* -l= - The select if the kind of resource supports it
+	* -d= - Show detail. See |ddu-source-k8s-param-show_detail|
+
+{kind} supports: >
+
+	pod, po, deployment, deploy, service, svc, replicaSet, rs, statefulSet, sts,
+	namespace, context, daemonSet, ds, cronJob, cj, job, endpointSlice,
+	configMap, cm, secret, persistentVolume, pv, persistentVolumeClaim, pvc,
+	node
+<
+
+This command provides completion for the options/{kind}.
+
+==============================================================================
+								*ddu-source-k8s-functions*
+9. NVIM Functions ~
+
+------------------------------------------------------------------------------
+
+								*dduk8s.setDetail* *dduk8s#setDetail*
+dduk8s#setDetail(enable)
+require('dduk8s').setDetail(enable)
+
+	Set "show_detail" of source params to {enable}.
+	This function won't refresh current DDU list.
+
+	example(in mapping of |ddu-ui-ff-examples|): >lua
+
+		vim.fn["dduk8s#setDetail"](true)
+		vim.fn['ddu#redraw'](vim.b.ddu_ui_name, { method = 'refreshItems' })
+<
+								*dduk8s.toggelDetail* *dduk8s#toggelDetail*
+dduk8s#toggleDetail()
+require('dduk8s').toggleDetail()
+
+	Toggle "show_detail" of source params.
+	This function won't refresh current DDU list.
+
+	example(in mapping of ddu-ui-ff-examples|): >lua
+
+		vim.fn["toggleDetail"]()
+		vim.fn['ddu#redraw'](vim.b.ddu_ui_name, { method = 'refreshItems' })
+<
+==============================================================================
+
+春花秋月何時了，往事知多少？
+小樓昨夜又東風，故國不堪回首月明中。
+
+雕欄玉砌應猶在，只是朱顏改。
+問君能有幾多愁，恰似一江春水向東流。
+
+《虞美人》李煜。南唐
+
+ vim: tw=78:sw=8:ts=8:noet:ft=help:norl
