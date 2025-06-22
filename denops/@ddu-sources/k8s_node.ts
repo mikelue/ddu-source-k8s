@@ -26,10 +26,10 @@ type K8sNodeInfo = {
 	};
 	status: K8sNodeStatus & {
 		conditions: {
-			"status": string;
-			"type": string;
-			"message": string;
-			"reason": string;
+			status: string;
+			type: string;
+			message?: string;
+			reason?: string;
 		}[]
 	};
 }
@@ -40,6 +40,7 @@ export type NodeInfo = k8s_common.CommonMeta & {
 	role: string;
 	ready: boolean;
 	readyMessage?: string;
+	readyReason?: string;
 }
 
 export class Source extends BaseSource<Params, NodeInfo> {
@@ -90,13 +91,14 @@ class NodeWorker implements k8s_common.K8sObjectToDduItemWorker<K8sNodeInfo, Nod
 		// :~)
 
 		/*
-		 * Grabs the "ready" status
+		 * Grabs the content of "ready" status
 		 */
 		actionData.ready = false;
 		for (const cond of source.status.conditions) {
 			if (cond.type === "Ready") {
 				actionData.ready = cond.status.toLowerCase() === "true";
-				actionData.readyMessage = `${cond.message}(${cond.reason})`;
+				actionData.readyMessage = cond.message;
+				actionData.readyReason = cond.reason;
 				break;
 			}
 		}
@@ -123,7 +125,7 @@ class NodeAttrWorker implements k8s_common.DduItemAttrWorker {
 
 		let notReadyText = "";
 		if (!this.actionData.ready) {
-			notReadyText = ` (${this.actionData.readyMessage}})`;
+			notReadyText = `󰾙 [${this.actionData.readyReason}}] `;
 		}
 
 		let cpuCapacity = "";
@@ -144,7 +146,8 @@ class NodeAttrWorker implements k8s_common.DduItemAttrWorker {
 		return Promise.resolve([
 			`${theme.icons.prefix} `,
 			this.actionData.name,
-			`  ${this.actionData.role}${notReadyText} 󱦂 ${this.actionData.podCIDR} (${this.actionData.age})`,
+			`${notReadyText}  ${this.actionData.role}`,
+			`󱦂 ${this.actionData.podCIDR} (${this.actionData.age})`,
 			` ${nodeInfo.kubeletVersion}  ${nodeInfo.kernelVersion}`,
 			`${cpuCapacity} ${memoryCapacity} ${storageCapacity}`,
 			`(${theme.icons.resource_version} ${this.actionData.resourceVersion})`,
@@ -164,19 +167,29 @@ class NodeAttrWorker implements k8s_common.DduItemAttrWorker {
 
 	highlights(theme: k8s_common.K8sTheme): Promise<k8s_common.HighlightsOfComponent>
 	{
+		const statusHlGroup = this.actionData.ready ? theme.hl_groups.l1_info : theme.hl_groups.error;
+
 		return Promise.resolve({
 			0: { name: "k8s-icon", hl_group: theme.hl_groups.prefix_icon, },
-			2: { name: "k8s-icon", hl_group: theme.hl_groups.l1_info, },
-			3: { name: "k8s-icon", hl_group: theme.hl_groups.l2_info, },
-			4: { name: "k8s-icon", hl_group: theme.hl_groups.uid, },
-			5: { name: "k8s-resource-version", hl_group: theme.hl_groups.resource_version, },
-			6: { name: "k8s-uid", hl_group: theme.hl_groups.uid, },
+			2: { name: "k8s-status", hl_group: statusHlGroup, },
+			3: { name: "k8s-network-info", hl_group: theme.hl_groups.l2_info, },
+			4: { name: "k8s-engine-info", hl_group: theme.hl_groups.l3_info, },
+			5: { name: "k8s-capacity", hl_group: theme.hl_groups.l2_info, },
+			6: { name: "k8s-resource-version", hl_group: theme.hl_groups.resource_version, },
+			7: { name: "k8s-uid", hl_group: theme.hl_groups.uid, },
 		})
 	}
 
 	info(commonInfo: ItemInfo[], theme: k8s_common.K8sTheme): Promise<ItemInfo[]>
 	{
 		const itemList: ItemInfo[] = [];
+
+		if (!this.actionData.ready) {
+			itemList.push({
+				text: `\t󰾙 ${this.actionData.readyMessage}`,
+				hl_group: theme.hl_groups.error
+			});
+		}
 
 		for (const [key, value] of Object.entries(this.actionData.status.capacity)) {
 			itemList.push({

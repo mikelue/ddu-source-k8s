@@ -85,7 +85,7 @@ class PersistentVolumeAttrWorker implements k8s_common.DduItemAttrWorker {
 
 	displayComponents(theme: k8s_common.K8sTheme): Promise<string[]>
 	{
-		const reason = this.actionData.reason ? ` 󰍢 ${this.actionData.message ?? ""}(${this.actionData.reason})` : "";
+		const reason = this.actionData.reason ? ` 󰍢 [${this.actionData.reason}]` : "";
 		const storageClass = this.actionData.storageClassName ? `  ${this.actionData.storageClassName}` : "";
 
 		return Promise.resolve([
@@ -102,16 +102,18 @@ class PersistentVolumeAttrWorker implements k8s_common.DduItemAttrWorker {
 	{
 		// Don't know why: matcher_fzf needs a empty character to match first part of word
 		return Promise.resolve(
-			` ${this.actionData.name}/${this.actionData.accessModes}/${this.actionData.status}/${this.actionData.message} ${this.actionData.reason}/${this.actionData.storageClassName}/${this.actionData.persistentVolumeReclaimPolicy}/${this.actionData.shortUid}/${this.actionData.age}`
+			` ${this.actionData.name}/${this.actionData.accessModes}/${this.actionData.status}/${this.actionData.reason} ${this.actionData.message}/${this.actionData.storageClassName}/${this.actionData.persistentVolumeReclaimPolicy}/${this.actionData.shortUid}/${this.actionData.age}`
 		);
 	}
 
 	highlights(theme: k8s_common.K8sTheme): Promise<k8s_common.HighlightsOfComponent>
 	{
+		const statusHlGroup = this.actionData.reason ? theme.hl_groups.error : theme.hl_groups.l1_info;
+
 		return Promise.resolve({
 			0: { name: "k8s-icon", hl_group: theme.hl_groups.prefix_icon, },
 			2: { name: "k8s-pv", hl_group: theme.hl_groups.l2_info, },
-			3: { name: "k8s-pv-status", hl_group: theme.hl_groups.l1_info, },
+			3: { name: "k8s-pv-status", hl_group: statusHlGroup, },
 			4: { name: "k8s-resource-version", hl_group: theme.hl_groups.resource_version, },
 			5: { name: "k8s-uid", hl_group: theme.hl_groups.uid, },
 		})
@@ -119,19 +121,26 @@ class PersistentVolumeAttrWorker implements k8s_common.DduItemAttrWorker {
 
 	info(commonInfo: ItemInfo[], theme: k8s_common.K8sTheme): Promise<ItemInfo[]>
 	{
+		const infoList: ItemInfo[] = [];
+
+		if (this.actionData.message) {
+			infoList.push({
+				text: `\t󰍢 ${this.actionData.message}`,
+				hl_group: theme.hl_groups.error,
+			})
+		}
+
 		if (this.actionData.claimRef) {
-			const infoList: ItemInfo[] = [];
 			const claimRef = this.actionData.claimRef;
 
 			infoList.push({
 				text: `\t ${claimRef.name}(${claimRef.kind}) (${claimRef.uid.slice(0, 8)}...)`,
 				hl_group: theme.hl_groups.l3_info,
 			})
-			infoList.push(...commonInfo);
-
-			return Promise.resolve(infoList);
 		}
 
-		return Promise.resolve(commonInfo);
+		infoList.push(...commonInfo);
+
+		return Promise.resolve(infoList);
 	}
 }

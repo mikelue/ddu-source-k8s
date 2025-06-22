@@ -36,6 +36,8 @@ export type PodInfo = k8s_common.CommonMeta & {
 		totalCount: number;
 		restartCount: number;
 		latestStartTime?: Date;
+		waitingReason?: string;
+		waitingMessage?: string;
 	};
 	containers: {
 		name: string;
@@ -78,6 +80,8 @@ class PodWorker implements k8s_common.K8sObjectToDduItemWorker<K8sPodInfo, PodIn
 		let restartCount = 0;
 		const totalCount = source.status.containerStatuses?.length ?? 0;
 		let latestRestartTime: Date | undefined = undefined;
+		let waitingReason: string | undefined = undefined;
+		let waitingMessage: string | undefined = undefined;
 		for (const containerStatus of source.status.containerStatuses) {
 			if (containerStatus.ready) {
 				readyCount++;
@@ -93,6 +97,9 @@ class PodWorker implements k8s_common.K8sObjectToDduItemWorker<K8sPodInfo, PodIn
 				latestRestartTime = new Date(state.running.startedAt);
 			} else if ("terminated" in state) {
 				latestRestartTime = new Date(state.terminated.startedAt);
+			} else if ("waiting" in state) {
+				waitingReason = state.waiting.reason;
+				waitingMessage = state.waiting.message;
 			}
 			// :~)
 
@@ -101,11 +108,13 @@ class PodWorker implements k8s_common.K8sObjectToDduItemWorker<K8sPodInfo, PodIn
 				limits: containerStatus.resources.limits,
 			});
 		}
-		actionData.containerStatuses ={
+		actionData.containerStatuses = {
 			readyCount: readyCount,
 			restartCount: restartCount,
 			totalCount: totalCount,
 			latestStartTime: latestRestartTime,
+			waitingReason: waitingReason,
+			waitingMessage: waitingMessage,
 		};
 
 		return Promise.resolve();
@@ -116,6 +125,8 @@ class PodAttrWorker implements k8s_common.DduItemAttrWorker {
 	// private readonly args: GatherArguments<k8s_common.CommonParams>;
 	private readonly actionData: PodInfo;
 	private readonly relativeTimeOfLatestStart: string = "";
+	private readonly waitingMessage: string = "";
+	private readonly waitingReason: string = "";
 
 	constructor(_args: GatherArguments<Params>, actionData: PodInfo)
 	{
@@ -125,6 +136,14 @@ class PodAttrWorker implements k8s_common.DduItemAttrWorker {
 		const containerStatuses = this.actionData.containerStatuses;
 		if (containerStatuses.latestStartTime) {
 			this.relativeTimeOfLatestStart = twas(containerStatuses.latestStartTime);
+		}
+
+		if (containerStatuses.waitingMessage) {
+			this.waitingMessage = containerStatuses.waitingMessage;
+		}
+
+		if (containerStatuses.waitingReason) {
+			this.waitingReason = containerStatuses.waitingReason ?? "";
 		}
 	}
 
@@ -137,10 +156,15 @@ class PodAttrWorker implements k8s_common.DduItemAttrWorker {
 			latestStartTimeText = ` (󱫐 ${this.relativeTimeOfLatestStart})`;
 		}
 
+		let waitingReasonText = "";
+		if (this.waitingReason !== "") {
+			waitingReasonText = `󰾙 [${this.waitingReason}] `;
+		}
+
 		return Promise.resolve([
 			`${theme.icons.prefix} `,
 			this.actionData.name,
-			` ${this.actionData.phase}`,
+			`${waitingReasonText} ${this.actionData.phase}`,
 			` ${containerStatuses.readyCount}/${containerStatuses.totalCount}  ${containerStatuses.restartCount}${latestStartTimeText}`,
 			`󰩠 ${this.actionData.podIP} (${this.actionData.age})`,
 			`(${theme.icons.resource_version} ${this.actionData.resourceVersion})`,
@@ -152,14 +176,14 @@ class PodAttrWorker implements k8s_common.DduItemAttrWorker {
 	{
 		// Don't know why: matcher_fzf needs a empty character to match first part of word
 		return Promise.resolve(
-			` ${this.actionData.name}/${this.actionData.phase}/${this.relativeTimeOfLatestStart}/${this.actionData.podIP}/${this.actionData.shortUid}/${this.actionData.age}`
+			` ${this.actionData.name}/${this.actionData.phase}/${this.waitingReason} ${this.waitingMessage}/${this.relativeTimeOfLatestStart}/${this.actionData.podIP}/${this.actionData.shortUid}/${this.actionData.age}`
 		);
 	}
 
 	highlights(theme: k8s_common.K8sTheme): Promise<k8s_common.HighlightsOfComponent>
 	{
-		const phaseHlGroup = this.actionData.phase === "Running" ?
-			theme.hl_groups.l2_info : theme.hl_groups.l1_info;
+		const phaseHlGroup = this.waitingReason === "" ?
+			theme.hl_groups.l2_info : theme.hl_groups.error;
 
 		return Promise.resolve({
 			0: { name: "k8s-icon", hl_group: theme.hl_groups.prefix_icon, },
@@ -174,6 +198,14 @@ class PodAttrWorker implements k8s_common.DduItemAttrWorker {
 	info(commonInfo: ItemInfo[], theme: k8s_common.K8sTheme): Promise<ItemInfo[]>
 	{
 		const infoList: ItemInfo[] = [];
+
+		if (this.waitingMessage !== "") {
+			infoList.push({
+				text: `\t󰾙 ${this.waitingMessage}`,
+				hl_group: theme.hl_groups.error,
+			});
+		}
+
 		infoList.push({
 			text: `\t ${this.actionData.hostIP}`,
 			hl_group: theme.hl_groups.l2_info,

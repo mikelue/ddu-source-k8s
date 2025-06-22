@@ -27,6 +27,7 @@ export type K8sTheme = {
 		l1_info: string;
 		l2_info: string;
 		l3_info: string;
+		error: string;
 	},
 	icons: {
 		prefix: string;
@@ -54,6 +55,7 @@ export const DEFAULT_THEME: K8sTheme = {
 		l1_info: "DiagnosticWarn",
 		l2_info: "DiagnosticInfo",
 		l3_info: "SpecialKey",
+		error: "DiagnosticError",
 	},
 	icons: {
 		prefix: "",

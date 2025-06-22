@@ -7,7 +7,7 @@ export type Params = k8s_common.CommonParams;
 type StatefulSetStatus = {
 	readyReplicas: number;
 	availableReplicas: number;
-	updatedReplicas: number;
+	updatedReplicas?: number;
 }
 
 type K8sStatefulSetInfo = {
@@ -81,7 +81,7 @@ class StatefulSetAttrWorker implements k8s_common.DduItemAttrWorker {
 			`${theme.icons.prefix} `,
 			this.actionData.name,
 			`${this.actionData.name} (${this.actionData.serviceName})`,
-			`󰲷 ${statefulSetStatus.readyReplicas}/${this.actionData.replicas}  ${statefulSetStatus.updatedReplicas}  ${statefulSetStatus.availableReplicas} (${this.actionData.age})`,
+			`󰲷 ${statefulSetStatus.readyReplicas}/${this.actionData.replicas}  ${statefulSetStatus.updatedReplicas ?? "<N/A>"}  ${statefulSetStatus.availableReplicas} (${this.actionData.age})`,
 			`(${theme.icons.resource_version} ${this.actionData.resourceVersion})`,
 			`(${this.actionData.shortUid}...)`,
 		]);

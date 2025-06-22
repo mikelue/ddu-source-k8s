@@ -262,6 +262,9 @@ Properties defined by |g:dduk8s#theme|:
 	"l3_info" - This is an abstract definition of highlight.
 		Use this if you like to focus some unimportant text.
 
+	"error" - This is an abstract definition of highlight.
+		Use this if you like to focus some error message.
+
 								*ddu-source-k8s-theme-icons*
 "icons" - The icons used in display component.
 
@@ -317,6 +320,7 @@ default values(lua example): >lua
 			l1_info = "DiagnosticWarn",
 			l2_info = "DiagnosticInfo",
 			l3_info = "SpecialKey",
+			error = "DiagnosticError",
 		},
 		icons = {
 			prefix = "",
@@ -644,30 +648,35 @@ k8s_node ~
 e.g.: >
 
 	  mike-sandbox   control-plane 󱦂 10.244.0.0/24 (2 weeks ago)  v1.33.1  6.8.0-60-generic  8  31.3 GB  233.18 GB ( 900321) (ef869322-...)
-	  <NAME>   <A>(<A-1>) 󱦂 <B> <AGE>  <C>  <D>  <E>  <F>  <G> ( <RESOURCE_VERSION>)>) (<UID>...)
+	  mike-sandbox 󰾙 [Not Ready]   control-plane 󱦂 10.244.0.0/24 (2 weeks ago)  v1.33.1  6.8.0-60-generic  8  31.3 GB  233.18 GB ( 900321) (ef869322-...)
+	  <NAME> 󰾙 <A>   <B> 󱦂 <C> <AGE>  <D>  <E>  <F>  <G>  <H> ( <RESOURCE_VERSION>)>) (<UID>...)
 <
 Explain:
 
-	* <A> - As the part of label name of K8S Node for "node-role.kubernetes.io/<role>".
-	* <A-1> - If the node is not ready, the message and reason of "Node.status.conditions"
-		would be shown in this part.
-	* <B> - As the value of "Node.spec.podCIDR"
-	* <C> - As the value of "Node.status.nodeInfo.kubeletVersion"
-	* <D> - As the value of "Node.status.nodeInfo.kernelVersion"
-	* <E> - As the value of "Node.status.capacity.cpu"
-	* <F> - As the value of "Node.status.capacity.memory"
-	* <G> - As the value of "Node.status.capacity.ephemeral-storage"
+	* <A> - As the value of "reason" property when "Node.status.conditions.type" is "Ready"
+		and its "status" is not "true".
+	* <B> - As the part of label name of K8S Node for "node-role.kubernetes.io/<role>".
+	* <C> - As the value of "Node.spec.podCIDR"
+	* <D> - As the value of "Node.status.nodeInfo.kubeletVersion"
+	* <E> - As the value of "Node.status.nodeInfo.kernelVersion"
+	* <F> - As the value of "Node.status.capacity.cpu"
+	* <G> - As the value of "Node.status.capacity.memory"
+	* <H> - As the value of "Node.status.capacity.ephemeral-storage"
 
 Additional info:
 
-	"Node.status.capacity"(shown as key/value pair): >
+++ "Node.status.conditions.message"(when the type is "Ready" and its "status" is not true"): >
 
-		 cpu  8
-		 ephemeral-storage  244506940Ki
-		 hugepages-1Gi  0
-		 hugepages-2Mi  0
-		 memory  32818752Ki
-		 pods  110
+	󰾙 back-off 5m0s restarting failed container=app pod=statefulset1-2_default(40015e87-106d-4e05-b176-e249ff8aa7f8)
+<
+++ "Node.status.capacity"(shown as key/value pair): >
+
+	 cpu  8
+	 ephemeral-storage  244506940Ki
+	 hugepages-1Gi  0
+	 hugepages-2Mi  0
+	 memory  32818752Ki
+	 pods  110
 
 Referenes:
 
@@ -680,7 +689,7 @@ k8s_persistentvolume ~
 e.g.: >
 
 	  pv0001  16Mi(RWO/Retain)  manual  Bound (2 days ago) ( 765489) (607b1891-...)
-	  pv0002  16Mi(RWO/Retain)  manual  Bound (2 days ago) ( 765494) (38a505b0-...)
+	  pv0002 󰾙 [Not Ready]  16Mi(RWO/Retain)  manual  Bound (2 days ago) ( 765494) (38a505b0-...)
 	  <NAME>  <A>(<B>/<C>)  <D>  <E> 󰍢 <F> <AGE> ( <RESOURCE_VERSION>) (<UID>...)
 <
 Explain:
@@ -690,8 +699,14 @@ Explain:
 	* <C> - As the value of "PersistentVolume.spec.persistentVolumeReclaimPolicy"
 	* <D> - As the value of "PersistentVolume.spec.storageClassName"
 	* <E> - As the value of "PersistentVolume.status.phase"
-	* <F> - As the value of "PersistentVolume.status.message" and "PersistentVolume.status.reason"
+	* <F> - As the value of "PersistentVolume.status.reason"
 
+Additional info:
+
+++ "PersistentVolume.status.message": >
+
+	󰍢 some message
+<
 Referenes:
 
 	PersistentVolume(https://kubernetes.io/docs/reference/kubernetes-api/config-and-storage-resources/persistent-volume-v1/)
@@ -725,24 +740,31 @@ e.g.: >
 
 	  noop-cronjob-7pm-29172900-rrglx  Succeeded  0/1  0 (󱫐 8 hours ago) 󰩠 10.244.0.24 (8 hours ago) ( 896380) (5a0b36ac-...)
 	  sample-daemon-one-mnl8t  Running  1/1  0 (󱫐 4 days ago) 󰩠 10.244.0.11 (4 days ago) ( 640479) (05ff945e-...)
-	  <NAME>  <A>  <B>/<C>  <D> (<E>) 󰩠 <F> <AGE> ( <RESOURCE_VERSION>) (<UID>...)
+	  statefulset1-2 󰾙 [CrashLoopBackOff]  Running  0/1  9 󰩠 10.244.0.47 (2a minutes ago) ( 961836) (40015e87-...)
+	  <NAME> 󰾙 <A>  <B>  <C>/<D>  <E> (<F>) 󰩠 <G> <AGE> ( <RESOURCE_VERSION>) (<UID>...)
 <
 Explain:
 
-	* <A> - As the value of "Pod.status.phase"
-	* <B> - As the number for "Pod.status.containerStatuses" where ".ready" is true
-	* <C> - As the number for "Pod.status.containerStatuses"
-	* <D> - As the accumulated number for "Pod.status.containerStatuses.restartCount"
-	* <E> - As the relative time for "Pod.status.containerStatuses.state.{Running | Terminated}.startedAt"
-	* <F> - As the value for "Pod.status.podIP"
+	* <A> - As the "reason" property of "Pod.status.containerStatuses.state" which
+		has "waiting" key.
+	* <B> - As the value of "Pod.status.phase"
+	* <C> - As the number for "Pod.status.containerStatuses" where ".ready" is true
+	* <D> - As the number for "Pod.status.containerStatuses"
+	* <E> - As the accumulated number for "Pod.status.containerStatuses.restartCount"
+	* <F> - As the relative time for "Pod.status.containerStatuses.state.{running | terminated}.startedAt"
+	* <G> - As the value for "Pod.status.podIP"
 
 Additional info:
 
-++ "Node.status.hostIP": >
+++ "Pod.status.containerStatus.state"(has "waiting" key): >
+
+	󰾙 back-off 5m0s restarting failed container=app pod=statefulset1-2_default(40015e87-106d-4e05-b176-e249ff8aa7f8)
+
+++ "Pod.status.hostIP": >
 
 	 192.168.49.2
 <
-++ "Node.containerStatuses.resources.limits": >
+++ "Pod.containerStatuses.resources.limits": >
 
 	󱤸 minimal-container  cpu/100m
 	󱤸 minimal-container  memory/100m
