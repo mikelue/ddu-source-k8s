@@ -5,8 +5,8 @@ import * as k8s_common from "../common.ts";
 export type Params = k8s_common.CommonParams;
 
 type StatefulSetStatus = {
-	readyStatefuls: number;
-	availableStatefuls: number;
+	readyReplicas: number;
+	availableReplicas: number;
 	updatedReplicas: number;
 }
 
@@ -54,8 +54,8 @@ class StatefulSetWorker implements k8s_common.K8sObjectToDduItemWorker<K8sStatef
 		actionData.replicas = source.spec.replicas;
 		actionData.selector = source.spec.selector;
 		actionData.status = {
-			readyStatefuls: source.status.readyStatefuls,
-			availableStatefuls: source.status.availableStatefuls,
+			readyReplicas: source.status.readyReplicas,
+			availableReplicas: source.status.availableReplicas,
 			updatedReplicas: source.status.updatedReplicas,
 		};
 
@@ -81,7 +81,7 @@ class StatefulSetAttrWorker implements k8s_common.DduItemAttrWorker {
 			`${theme.icons.prefix} `,
 			this.actionData.name,
 			`${this.actionData.name} (${this.actionData.serviceName})`,
-			`󰲷 ${statefulSetStatus.readyStatefuls}/${this.actionData.replicas}  ${this.actionData.updatedReplicas}  ${statefulSetStatus.availableStatefuls} (${this.actionData.age})`,
+			`󰲷 ${statefulSetStatus.readyReplicas}/${this.actionData.replicas}  ${statefulSetStatus.updatedReplicas}  ${statefulSetStatus.availableReplicas} (${this.actionData.age})`,
 			`(${theme.icons.resource_version} ${this.actionData.resourceVersion})`,
 			`(${this.actionData.shortUid}...)`,
 		]);
