@@ -196,7 +196,6 @@ local function dduK8s(cmdContext)
 	})
 end
 
-local REGEX_VIABLE_CONTEXT = [[\v-c\=(\S+)]]
 local function dduK8sCompletion(argLead, cmdLine, _)
 	local kindOfObjects = {
 		"pod", "po", "deployment", "deploy", "service", "svc", "replicaSet", "rs", "statefulSet", "sts",
@@ -210,13 +209,15 @@ local function dduK8sCompletion(argLead, cmdLine, _)
 		return kindOfObjects
 	end
 
+	local args = vim.split(argLead, "%s+", {})
+
 	-- /
 	-- Completion of kinds for K8S objects
 	-- /
-	if argLead:sub(1, 1) ~= "-" then
+	if args[1]:sub(1, 1) ~= "-" then
 		return vim.tbl_filter(
 			function(kind)
-				return vim.startswith(kind, argLead)
+				return vim.startswith(kind, args[1])
 			end,
 			kindOfObjects
 		)
@@ -224,15 +225,18 @@ local function dduK8sCompletion(argLead, cmdLine, _)
 	-- :~)
 
 	local function processCandidatesOfOption(optionName, values, checkingPrefix)
-		local candidates = {}
-		for _, value in ipairs(values) do
-			local fullOption = optionName .. value
-
-			if vim.startswith(fullOption, checkingPrefix) then
-				table.insert(candidates, optionName.. value)
-			end
-		end
-		return candidates
+		return vim.iter(values)
+			:map(
+				function(v)
+					return optionName .. v
+				end
+			)
+			:filter(
+				function(v)
+					return vim.startswith(v, checkingPrefix)
+				end
+			)
+			:totable()
 	end
 
 	local candidates = {}
@@ -240,10 +244,10 @@ local function dduK8sCompletion(argLead, cmdLine, _)
 	-- /
 	-- Completion of options
 	-- /
-	if vim.startswith(argLead, '-c=') then
+	if vim.startswith(args[1], '-c=') then
 		local execResult = vim.system(
 			{'kubectl', 'config', 'get-contexts', '--no-headers=true', '-o', 'name' },
-			{ text = true}
+			{ text = true }
 		):wait()
 
 		if execResult.code ~= 0 then
@@ -251,14 +255,15 @@ local function dduK8sCompletion(argLead, cmdLine, _)
 			return {}
 		end
 
-		candidates = processCandidatesOfOption('-c=', vim.fn.split(execResult.stdout, '\n'), argLead)
-	elseif vim.startswith(argLead, '-ns=') then
-		local onTheFlyContext = vim.fn.matchlist(cmdLine, REGEX_VIABLE_CONTEXT)
+		candidates = processCandidatesOfOption('-c=', vim.split(vim.trim(execResult.stdout), '\n'), args[1])
+	elseif vim.startswith(args[1], '-ns=') then
+		local patternForContext = '%-c=([^%s]+)'
+		local onTheFlyContext = vim.iter(cmdLine:gmatch(patternForContext)):next()
 
 		local kubectlArgs = { 'kubectl', 'get', 'namespaces', '--no-headers=true', '-o', 'custom-columns=name:metadata.name' }
-		if #onTheFlyContext > 0  then
+		if onTheFlyContext ~= nil  then
 			table.insert(kubectlArgs, '--context')
-			table.insert(kubectlArgs, onTheFlyContext[2])
+			table.insert(kubectlArgs, onTheFlyContext)
 		end
 
 		local execResult = vim.system(
@@ -270,11 +275,11 @@ local function dduK8sCompletion(argLead, cmdLine, _)
 			return {}
 		end
 
-		candidates = processCandidatesOfOption('-ns=', vim.fn.split(execResult.stdout, '\n'), argLead)
+		candidates = processCandidatesOfOption('-ns=', vim.split(vim.trim(execResult.stdout), '\n'), args[1])
 	else
 		candidates = vim.tbl_filter(
 			function(option)
-				return string.find(option, argLead, 1, true) == 1
+				return string.find(option, args[1], 1, true) == 1
 			end,
 			options
 		)

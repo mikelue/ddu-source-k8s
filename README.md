@@ -28,10 +28,6 @@ See [ddu-source-k8s.txt](doc/ddu-source-k8s.txt) for full documentation.
     ```vim
     Plug 'mikelue/ddu-source-k8s'
     ```
-* [Packer.nvim](https://github.com/wbthomason/packer.nvim)
-    ```lua
-    use 'mikelue/ddu-source-k8s'
-    ```
 * [Paq-nvim](https://github.com/savq/paq-nvim)
     ```lua
     require('paq')({ 'mikelue/ddu-source-k8s' })
