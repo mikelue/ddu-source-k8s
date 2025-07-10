@@ -1,6 +1,6 @@
 # ddu-source-k8s
 
-* This plugin use `kubectl` to make DDU list.
+* This plugin uses `kubectl` to build DDU list.
 * The items shown is decorated by [Nerd Fonts](https://www.nerdfonts.com/) and [highlight groups](https://neovim.io/doc/user/syntax.html#hl-ColorColumn).
 * Additionally, some detail information of a K8S resource is shown by [ddu-item-attribute-info](https://github.com/Shougo/ddu.vim/blob/main/doc/ddu.txt).
 
